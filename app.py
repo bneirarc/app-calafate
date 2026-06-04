@@ -2,13 +2,10 @@ import streamlit as st
 import base64
 from supabase import create_client, Client
 
-# Configuración inicial
 st.set_page_config(page_title="App Entrenadores - Calafate RC", page_icon="🏉", layout="centered")
 
-# --- CONFIGURACIÓN DE ADMINISTRADOR ---
 CORREO_ADMIN = "b.neirarc@gmail.com" 
 
-# Fondo y Diseño Visual
 def agregar_fondo_local(ruta_imagen):
     try:
         with open(ruta_imagen, "rb") as image_file:
@@ -28,28 +25,12 @@ def agregar_fondo_local(ruta_imagen):
                 border-radius: 10px;
                 border: 1px solid #444;
             }}
-            /* Forzar texto negro en cajas de texto normales */
-            input {{
-                color: #000000 !important;
-            }}
-            /* Forzar texto negro en botones de acción */
-            button p {{
-                color: #000000 !important;
-            }}
-            /* Letras blancas para las pestañas de navegación */
-            button[data-baseweb="tab"] p {{
-                color: #FFFFFF !important;
-            }}
-            /* Forzar texto negro en listas desplegables y calendarios */
-            div[data-baseweb="select"] * {{
-                color: #000000 !important;
-            }}
-            div[role="listbox"] * {{
-                color: #000000 !important;
-            }}
-            div[data-baseweb="popover"] * {{
-                color: #000000 !important;
-            }}
+            input {{ color: #000000 !important; }}
+            button p {{ color: #000000 !important; }}
+            button[data-baseweb="tab"] p {{ color: #FFFFFF !important; }}
+            div[data-baseweb="select"] * {{ color: #000000 !important; }}
+            div[role="listbox"] * {{ color: #000000 !important; }}
+            div[data-baseweb="popover"] * {{ color: #000000 !important; }}
             </style>
             """,
             unsafe_allow_html=True
@@ -59,7 +40,6 @@ def agregar_fondo_local(ruta_imagen):
 
 agregar_fondo_local("fondo.png")
 
-# Conexión a Supabase
 @st.cache_resource
 def init_connection():
     url = st.secrets["SUPABASE_URL"]
@@ -68,7 +48,6 @@ def init_connection():
 
 supabase: Client = init_connection()
 
-# --- MAPA DE COORDENADAS DE LA CANCHA DE RUGBY (1 al 15) ---
 POSICIONES_CANCHA = {
     1: {"x": 30, "y": 10}, 2: {"x": 50, "y": 10}, 3: {"x": 70, "y": 10},
     4: {"x": 40, "y": 20}, 5: {"x": 60, "y": 20},
@@ -80,13 +59,11 @@ POSICIONES_CANCHA = {
     15: {"x": 50, "y": 85}
 }
 
-# --- INICIALIZAR VARIABLES DE SESIÓN ---
 if 'usuario' not in st.session_state:
     st.session_state.usuario = None
 if 'materiales_copiados' not in st.session_state:
     st.session_state.materiales_copiados = None
 
-# --- PANTALLAS DE ACCESO ---
 if st.session_state.usuario is None:
     st.title("🏉 Calafate Rugby Club")
     st.subheader("Acceso Restringido")
@@ -104,7 +81,7 @@ if st.session_state.usuario is None:
                     st.session_state.usuario = respuesta.user
                     st.rerun()
                 except Exception as e:
-                    st.error("Error al iniciar sesión. Verifica tu correo y contraseña.")
+                    st.error("Error al iniciar sesión.")
 
     with tab_registro:
         with st.form("form_registro"):
@@ -114,18 +91,17 @@ if st.session_state.usuario is None:
             if btn_reg:
                 try:
                     supabase.auth.sign_up({"email": email_reg, "password": pass_reg})
-                    st.success("¡Registro exitoso! Ahora puedes ir a 'Iniciar Sesión' y entrar.")
+                    st.success("¡Registro exitoso! Ahora inicia sesión.")
                 except Exception as e:
                     st.error("Hubo un error en el registro.")
 
-# --- APLICACIÓN PRINCIPAL ---
 else:
     col1, col2 = st.columns([0.8, 0.2])
     with col1:
         st.title("🏉 Panel de Entrenadores")
         st.write(f"👤 Conectado como: **{st.session_state.usuario.email}**")
         if st.session_state.usuario.email == CORREO_ADMIN:
-            st.caption("👑 Tienes permisos de Administrador")
+            st.caption("👑 Administrador")
             
     with col2:
         if st.button("Cerrar Sesión"):
@@ -134,7 +110,6 @@ else:
             st.rerun()
 
     st.write("---")
-
     tab_lista, tab_crear = st.tabs(["📅 Próximos Eventos", "➕ Registrar Evento"])
 
     with tab_lista:
@@ -147,12 +122,10 @@ else:
         else:
             for evento in eventos:
                 with st.expander(f"➔ {evento['titulo']} ({evento['tipo']})"):
-                    # Agregada la pestaña 'Materiales'
-                    sub_info, sub_alineacion, sub_cancha, sub_materiales = st.tabs([
-                        "Detalles y Comentarios", "📋 Editar Alineación", "🏟️ Cancha Virtual", "📦 Materiales"
+                    sub_info, sub_alineacion, sub_cancha, sub_materiales, sub_encargados = st.tabs([
+                        "Detalles", "📋 Alineación", "🏟️ Cancha", "📦 Materiales", "👥 Editar Encargados"
                     ])
                     
-                    # 1. DETALLES Y COMENTARIOS
                     with sub_info:
                         fecha_str = evento["fecha_hora"].replace("T", " ")[:16]
                         st.write(f"🕒 **Cuándo:** {fecha_str}")
@@ -160,6 +133,13 @@ else:
                         if evento["link_maps"]:
                             st.markdown(f"[📍 Ver ubicación en Google Maps]({evento['link_maps']})")
                         
+                        # --- SECCIÓN ENCARGADOS (Entre ubicación y comentarios) ---
+                        res_enc_ver = supabase.table("encargados").select("*").eq("evento_id", evento["id"]).order("id").execute()
+                        if res_enc_ver.data:
+                            nombres_enc = [e["nombre"] for e in res_enc_ver.data]
+                            st.write(f"👥 **Encargados:** {', '.join(nombres_enc)}")
+                        # ------------------------------------------------------------
+
                         st.write("---")
                         st.write("💬 **Comentarios:**")
                         res_comentarios = supabase.table("comentarios").select("*").eq("evento_id", evento["id"]).order("creado_en").execute()
@@ -179,18 +159,15 @@ else:
 
                         if st.session_state.usuario.email == CORREO_ADMIN:
                             st.write("---")
-                            if st.button("🗑️ Eliminar Evento Completo", key=f"borrar_{evento['id']}", type="primary"):
+                            if st.button("🗑️ Eliminar Evento", key=f"borrar_{evento['id']}", type="primary"):
                                 supabase.table("eventos").delete().eq("id", evento["id"]).execute()
                                 st.success("Evento eliminado.")
                                 st.rerun()
 
-                    # Cargar alineación actual
                     res_alineacion = supabase.table("alineaciones").select("*").eq("evento_id", evento["id"]).execute()
                     alineacion_actual = {item["numero"]: item["jugador"] for item in res_alineacion.data}
 
-                    # 2. EDITAR ALINEACIÓN
                     with sub_alineacion:
-                        st.write("Ingresa los nombres de los jugadores. Cualquier entrenador puede modificar esto.")
                         with st.form(f"form_al_{evento['id']}"):
                             cols_form = st.columns(3)
                             nuevos_jugadores = {}
@@ -208,9 +185,7 @@ else:
                                 st.success("Alineación guardada.")
                                 st.rerun()
 
-                    # 3. CANCHA VIRTUAL
                     with sub_cancha:
-                        st.markdown("### Alineación Titular")
                         html_cancha = """<div style="background-color: #2e7d32; border: 3px solid white; border-radius: 8px; position: relative; height: 500px; width: 100%; overflow: hidden; margin-bottom: 20px;">
 <div style="position: absolute; top: 15%; left: 0; width: 100%; border-top: 2px dashed rgba(255,255,255,0.4);"></div>
 <div style="position: absolute; top: 50%; left: 0; width: 100%; border-top: 3px solid rgba(255,255,255,0.8);"></div>
@@ -236,91 +211,108 @@ else:
                         with col_r2:
                             for r in reservas[4:]: st.markdown(r)
 
-                    # 4. NUEVA PESTAÑA: MATERIALES (MÁXIMO 30 ELEMENTOS Y COPIAR/PEGAR)
                     with sub_materiales:
-                        st.write("Gestiona la logística y los materiales requeridos para la actividad.")
-                        
-                        # Cargar materiales guardados
                         res_mat = supabase.table("materiales").select("*").eq("evento_id", evento["id"]).order("id").execute()
                         materiales_actuales = res_mat.data
                         
-                        # Botones para Copiar y Pegar listas entre eventos
                         col_cp1, col_cp2 = st.columns(2)
                         with col_cp1:
-                            if st.button("📋 Copiar esta Lista de Materiales", key=f"btn_copy_mat_{evento['id']}"):
-                                st.session_state.materiales_copiados = [
-                                    {"elemento": m["elemento"], "cantidad": m["cantidad"], "estado": m["estado"]} 
-                                    for m in materiales_actuales
-                                ]
-                                st.success("¡Lista copiada! Ya puedes ir a otro evento y pegarla.")
+                            if st.button("📋 Copiar Lista", key=f"btn_copy_mat_{evento['id']}"):
+                                st.session_state.materiales_copiados = [{"elemento": m["elemento"], "cantidad": m["cantidad"], "estado": m["estado"]} for m in materiales_actuales]
+                                st.success("¡Lista copiada!")
                         with col_cp2:
                             if st.session_state.materiales_copiados is not None:
-                                if st.button("📋 Pegar Lista Copiada Aquí", key=f"btn_paste_mat_{evento['id']}"):
+                                if st.button("📋 Pegar Lista", key=f"btn_paste_mat_{evento['id']}"):
                                     supabase.table("materiales").delete().eq("evento_id", evento["id"]).execute()
-                                    datos_pegar = [
-                                        {"evento_id": evento["id"], "elemento": mc["elemento"], "cantidad": mc["cantidad"], "estado": mc["estado"]}
-                                        for mc in st.session_state.materiales_copiados
-                                    ]
+                                    datos_pegar = [{"evento_id": evento["id"], "elemento": mc["elemento"], "cantidad": mc["cantidad"], "estado": mc["estado"]} for mc in st.session_state.materiales_copiados]
                                     if datos_pegar:
                                         supabase.table("materiales").insert(datos_pegar).execute()
-                                    st.success("¡Lista pegada exitosamente!")
+                                    st.success("¡Lista pegada!")
                                     st.rerun()
 
-                        st.write("---")
-                        
-                        # Formulario de cuadrícula para los 30 elementos
                         with st.form(f"form_mat_{evento['id']}"):
                             nuevos_materiales = []
-                            
-                            # Ciclo para construir las 30 filas dinámicas
                             for i in range(30):
-                                # Pre-cargar valores existentes si es que hay
                                 val_el = materiales_actuales[i]["elemento"] if i < len(materiales_actuales) else ""
                                 val_cant = materiales_actuales[i]["cantidad"] if i < len(materiales_actuales) else ""
                                 val_est = materiales_actuales[i]["estado"] if i < len(materiales_actuales) else "Ok"
                                 idx_est = 0 if val_est == "Ok" else 1
                                 
                                 c1, c2, c3 = st.columns([0.5, 0.2, 0.3])
-                                with c1:
-                                    el = st.text_input("Elemento / Material", value=val_el, key=f"mat_el_{evento['id']}_{i}", label_visibility="visible" if i == 0 else "collapsed")
-                                with c2:
-                                    cant = st.text_input("Cantidad", value=val_cant, key=f"mat_ca_{evento['id']}_{i}", label_visibility="visible" if i == 0 else "collapsed")
-                                with c3:
-                                    est = st.selectbox("Estado", ["Ok", "Falta"], index=idx_est, key=f"mat_es_{evento['id']}_{i}", label_visibility="visible" if i == 0 else "collapsed")
+                                with c1: el = st.text_input("Elemento", value=val_el, key=f"mat_el_{evento['id']}_{i}", label_visibility="visible" if i == 0 else "collapsed")
+                                with c2: cant = st.text_input("Cantidad", value=val_cant, key=f"mat_ca_{evento['id']}_{i}", label_visibility="visible" if i == 0 else "collapsed")
+                                with c3: est = st.selectbox("Estado", ["Ok", "Falta"], index=idx_est, key=f"mat_es_{evento['id']}_{i}", label_visibility="visible" if i == 0 else "collapsed")
                                 
-                                # Si el campo de texto tiene contenido, lo añadimos a la lista para guardar
                                 if el.strip() != "":
-                                    nuevos_materiales.append({
-                                        "evento_id": evento["id"],
-                                        "elemento": el,
-                                        "cantidad": cant,
-                                        "estado": est
-                                    })
+                                    nuevos_materiales.append({"evento_id": evento["id"], "elemento": el, "cantidad": cant, "estado": est})
                             
-                            if st.form_submit_button("Guardar Lista de Materiales"):
-                                # Reemplazar la lista completa en la base de datos
+                            if st.form_submit_button("Guardar Materiales"):
                                 supabase.table("materiales").delete().eq("evento_id", evento["id"]).execute()
                                 if nuevos_materiales:
                                     supabase.table("materiales").insert(nuevos_materiales).execute()
-                                st.success("¡Inventario de materiales guardado con éxito!")
+                                st.success("Guardado.")
+                                st.rerun()
+
+                    with sub_encargados:
+                        st.write("Edita a los responsables de esta actividad si es necesario.")
+                        res_enc_edit = supabase.table("encargados").select("*").eq("evento_id", evento["id"]).order("id").execute()
+                        encargados_actuales = res_enc_edit.data
+
+                        with st.form(f"form_enc_edit_{evento['id']}"):
+                            nuevos_encargados = []
+                            for i in range(5):
+                                val_nombre = encargados_actuales[i]["nombre"] if i < len(encargados_actuales) else ""
+                                nombre = st.text_input(f"Responsable {i+1}", value=val_nombre, key=f"enc_edit_{evento['id']}_{i}")
+                                
+                                if nombre.strip() != "":
+                                    nuevos_encargados.append({"evento_id": evento["id"], "nombre": nombre})
+
+                            if st.form_submit_button("Actualizar Encargados"):
+                                supabase.table("encargados").delete().eq("evento_id", evento["id"]).execute()
+                                if nuevos_encargados:
+                                    supabase.table("encargados").insert(nuevos_encargados).execute()
+                                st.success("Responsables actualizados con éxito.")
                                 st.rerun()
 
     with tab_crear:
         st.header("Nuevo Evento")
         with st.form("form_nuevo_evento", clear_on_submit=True):
             titulo = st.text_input("Título del Evento")
-            # Añadido 'Festival' a las opciones del menú
             tipo = st.selectbox("Tipo", ["Partido", "Entrenamiento", "Festival", "Reunión", "Tercer Tiempo"])
             fecha = st.date_input("Fecha")
             hora = st.time_input("Hora")
             lugar = st.text_input("Lugar / Cancha")
             link = st.text_input("Link de Google Maps (Opcional)")
             
+            # --- NUEVOS CAMPOS DE ENCARGADOS AL CREAR ---
+            st.write("---")
+            st.write("👥 **Designar Encargados (Máximo 5)**")
+            col_e1, col_e2 = st.columns(2)
+            with col_e1:
+                enc1 = st.text_input("Encargado 1")
+                enc3 = st.text_input("Encargado 3")
+                enc5 = st.text_input("Encargado 5")
+            with col_e2:
+                enc2 = st.text_input("Encargado 2")
+                enc4 = st.text_input("Encargado 4")
+            # ---------------------------------------------
+            
             submit = st.form_submit_button("Guardar Evento")
             
             if submit:
                 fecha_hora_str = f"{fecha}T{hora}"
                 nuevo_evento = {"titulo": titulo, "tipo": tipo, "fecha_hora": fecha_hora_str, "lugar": lugar, "link_maps": link}
-                supabase.table("eventos").insert(nuevo_evento).execute()
+                
+                # 1. Guardar el evento y obtener su ID de vuelta
+                respuesta_insercion = supabase.table("eventos").insert(nuevo_evento).execute()
+                nuevo_id = respuesta_insercion.data[0]['id']
+                
+                # 2. Recolectar los encargados que no estén en blanco y guardarlos vinculados al nuevo ID
+                lista_encargados = [enc1, enc2, enc3, enc4, enc5]
+                datos_encargados = [{"evento_id": nuevo_id, "nombre": e.strip()} for e in lista_encargados if e.strip() != ""]
+                
+                if datos_encargados:
+                    supabase.table("encargados").insert(datos_encargados).execute()
+                
                 st.success("¡Evento registrado exitosamente!")
                 st.rerun()
