@@ -31,6 +31,15 @@ def agregar_fondo_local(ruta_imagen):
             div[data-baseweb="select"] * {{ color: #000000 !important; }}
             div[role="listbox"] * {{ color: #000000 !important; }}
             div[data-baseweb="popover"] * {{ color: #000000 !important; }}
+            
+            /* --- CORRECCIÓN PARA CELULARES --- */
+            /* Evitar que las columnas de los formularios se apilen hacia abajo */
+            @media (max-width: 768px) {{
+                div[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {{
+                    flex-direction: row !important;
+                    flex-wrap: nowrap !important;
+                }}
+            }}
             </style>
             """,
             unsafe_allow_html=True
@@ -133,13 +142,12 @@ else:
                         if evento["link_maps"]:
                             st.markdown(f"[📍 Ver ubicación en Google Maps]({evento['link_maps']})")
                         
-                        # --- SECCIÓN ENCARGADOS (Entre ubicación y comentarios) ---
+                        # --- SECCIÓN ENCARGADOS ---
                         res_enc_ver = supabase.table("encargados").select("*").eq("evento_id", evento["id"]).order("id").execute()
                         if res_enc_ver.data:
                             nombres_enc = [e["nombre"] for e in res_enc_ver.data]
                             st.write(f"👥 **Encargados:** {', '.join(nombres_enc)}")
-                        # ------------------------------------------------------------
-
+                        
                         st.write("---")
                         st.write("💬 **Comentarios:**")
                         res_comentarios = supabase.table("comentarios").select("*").eq("evento_id", evento["id"]).order("creado_en").execute()
@@ -211,7 +219,10 @@ else:
                         with col_r2:
                             for r in reservas[4:]: st.markdown(r)
 
+                    # --- LISTA DE MATERIALES INTELIGENTE Y ADAPTADA A MÓVIL ---
                     with sub_materiales:
+                        st.write("Gestiona la logística. (La lista crecerá automáticamente a medida que agregues elementos).")
+                        
                         res_mat = supabase.table("materiales").select("*").eq("evento_id", evento["id"]).order("id").execute()
                         materiales_actuales = res_mat.data
                         
@@ -232,25 +243,32 @@ else:
 
                         with st.form(f"form_mat_{evento['id']}"):
                             nuevos_materiales = []
-                            for i in range(30):
+                            
+                            # Mostrar elementos existentes + 3 espacios libres (máximo 30 total)
+                            filas_totales = len(materiales_actuales) + 3
+                            if filas_totales > 30: filas_totales = 30
+                            if filas_totales == 0: filas_totales = 3 
+                            
+                            for i in range(filas_totales):
                                 val_el = materiales_actuales[i]["elemento"] if i < len(materiales_actuales) else ""
                                 val_cant = materiales_actuales[i]["cantidad"] if i < len(materiales_actuales) else ""
                                 val_est = materiales_actuales[i]["estado"] if i < len(materiales_actuales) else "Ok"
                                 idx_est = 0 if val_est == "Ok" else 1
                                 
-                                c1, c2, c3 = st.columns([0.5, 0.2, 0.3])
+                                # Proporciones de columnas adaptadas para móvil
+                                c1, c2, c3 = st.columns([0.5, 0.25, 0.25])
                                 with c1: el = st.text_input("Elemento", value=val_el, key=f"mat_el_{evento['id']}_{i}", label_visibility="visible" if i == 0 else "collapsed")
-                                with c2: cant = st.text_input("Cantidad", value=val_cant, key=f"mat_ca_{evento['id']}_{i}", label_visibility="visible" if i == 0 else "collapsed")
+                                with c2: cant = st.text_input("Cant.", value=val_cant, key=f"mat_ca_{evento['id']}_{i}", label_visibility="visible" if i == 0 else "collapsed")
                                 with c3: est = st.selectbox("Estado", ["Ok", "Falta"], index=idx_est, key=f"mat_es_{evento['id']}_{i}", label_visibility="visible" if i == 0 else "collapsed")
                                 
                                 if el.strip() != "":
                                     nuevos_materiales.append({"evento_id": evento["id"], "elemento": el, "cantidad": cant, "estado": est})
                             
-                            if st.form_submit_button("Guardar Materiales"):
+                            if st.form_submit_button("Guardar Lista de Materiales"):
                                 supabase.table("materiales").delete().eq("evento_id", evento["id"]).execute()
                                 if nuevos_materiales:
                                     supabase.table("materiales").insert(nuevos_materiales).execute()
-                                st.success("Guardado.")
+                                st.success("¡Inventario guardado con éxito!")
                                 st.rerun()
 
                     with sub_encargados:
@@ -284,7 +302,6 @@ else:
             lugar = st.text_input("Lugar / Cancha")
             link = st.text_input("Link de Google Maps (Opcional)")
             
-            # --- NUEVOS CAMPOS DE ENCARGADOS AL CREAR ---
             st.write("---")
             st.write("👥 **Designar Encargados (Máximo 5)**")
             col_e1, col_e2 = st.columns(2)
@@ -295,7 +312,6 @@ else:
             with col_e2:
                 enc2 = st.text_input("Encargado 2")
                 enc4 = st.text_input("Encargado 4")
-            # ---------------------------------------------
             
             submit = st.form_submit_button("Guardar Evento")
             
@@ -303,11 +319,9 @@ else:
                 fecha_hora_str = f"{fecha}T{hora}"
                 nuevo_evento = {"titulo": titulo, "tipo": tipo, "fecha_hora": fecha_hora_str, "lugar": lugar, "link_maps": link}
                 
-                # 1. Guardar el evento y obtener su ID de vuelta
                 respuesta_insercion = supabase.table("eventos").insert(nuevo_evento).execute()
                 nuevo_id = respuesta_insercion.data[0]['id']
                 
-                # 2. Recolectar los encargados que no estén en blanco y guardarlos vinculados al nuevo ID
                 lista_encargados = [enc1, enc2, enc3, enc4, enc5]
                 datos_encargados = [{"evento_id": nuevo_id, "nombre": e.strip()} for e in lista_encargados if e.strip() != ""]
                 
