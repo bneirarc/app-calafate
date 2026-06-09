@@ -1,0 +1,29 @@
+name: Cobro Mensual de Cuotas
+
+on:
+  schedule:
+    # Se ejecuta el día 1 de cada mes a las 12:00 UTC (08:00 AM hora de Chile)
+    - cron: '0 12 1 * *'
+  workflow_dispatch: # Nos crea un botón para ejecutar el cobro de forma manual cuando queramos
+
+jobs:
+  enviar_recordatorios:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Descargar código del repositorio
+      uses: actions/checkout@v3
+
+    - name: Configurar Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Instalar librerías de lectura de datos
+      run: pip install pandas openpyxl
+
+    - name: Ejecutar cobro de cuotas
+      env:
+        EMAIL_REMITENTE: ${{ secrets.EMAIL_REMITENTE }}
+        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+      run: python cuotas.py
