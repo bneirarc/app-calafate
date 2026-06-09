@@ -32,7 +32,23 @@ def enviar_correo_deuda(nombre, correo, meses_deuda):
             ⚠️ {meses_texto}
         </p>
         
-        <p style="color: #000000; font-size: 14px;">Por favor, ponte en contacto con tesorería para coordinar el pago o enviar tu comprobante de transferencia si ya lo realizaste.</p>
+        <p style="color: #000000; font-size: 14px;">Para regularizar tu situación, por favor realiza una transferencia electrónica con los siguientes datos:</p>
+        
+        <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; border-left: 4px solid #000000; margin: 15px 0; color: #000000; font-size: 14px; max-width: 400px;">
+            <strong style="font-size: 15px;">Datos de Depósito:</strong><br><br>
+            • <strong>Nombre:</strong> Katherine Torres<br>
+            • <strong>RUT:</strong> 19.947.230-5<br>
+            • <strong>Tipo de Cuenta:</strong> Cuenta Corriente<br>
+            • <strong>Número de Cuenta:</strong> 18330098221<br>
+            • <strong>Banco:</strong> Banco Falabella<br>
+            • <strong>Correo:</strong> katherine.tor.rod@gmail.com
+        </div>
+        
+        <p style="color: #000000; font-size: 14px;">Una vez realizado el pago, por favor envía el comprobante de transferencia al correo indicado arriba.</p>
+        
+        <p style="color: #555555; font-size: 13px; font-style: italic; margin-top: 20px;">
+            ℹ️ En caso de dudas, aclaraciones o reclamos, por favor contactar directamente a la tesorera del club al teléfono: <strong>+569 7604 5865</strong>.
+        </p>
         <br>
         <p style="color: #000000; font-size: 14px;">¡Agradecemos tu constante compromiso con el club!</p>
         <br>
@@ -69,20 +85,17 @@ def procesar_cuotas():
         nombre = row["Nombre"]
         correo = row["Correo"]
         
-        # Validar que tenga un correo ingresado
         if pd.isna(correo) or str(correo).strip() == "":
             continue
             
         meses_deuda = []
         
-        # Revisar cada mes de la fila actual
         for mes in meses_columnas:
             if mes in df.columns:
                 valor_celda = str(row[mes]).strip().lower()
                 if valor_celda == "debe":
                     meses_deuda.append(mes)
                     
-        # Si tiene deudas, gatillar el correo
         if meses_deuda:
             enviar_correo_deuda(nombre, correo, meses_deuda)
         else:
