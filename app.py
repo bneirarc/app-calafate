@@ -1,6 +1,7 @@
 import streamlit as st
 import base64
 from supabase import create_client, Client
+from datetime import datetime, timedelta
 
 st.set_page_config(page_title="App Entrenadores - Calafate RC", page_icon="🏉", layout="centered")
 
@@ -10,10 +11,9 @@ CORREO_ADMIN = "b.neirarc@gmail.com"
 # Agrega aquí los correos de todos los que deben tener permisos de Entrenador
 CORREOS_ENTRENADORES = [
     "b.neirarc@gmail.com",
-    "bastian.venegasenois@gmail.com",
-    "claudio.leiva.temuco@gmail.com",
-    "jmgonz652@gmail.com"
-    "eamcfit@gmail.com"
+    "katherine.tor.rod@gmail.com",
+    "entrenador3@gmail.com",
+    "entrenador4@gmail.com"
 ]
 
 def agregar_fondo_local(ruta_imagen):
@@ -141,7 +141,7 @@ else:
 
     st.write("---")
     
-    # --- DISTRIBUCIÓN DE PESTAÑAS PRINCIPALES SEGÚN EL ROL ---
+    # --- DISTRIBUCIÓN DE PESTAÑAS PRINCIPALES ---
     if es_entrenador:
         tabs_principales = st.tabs(["📅 Próximos Eventos", "➕ Registrar Evento"])
         tab_lista = tabs_principales[0]
@@ -153,7 +153,15 @@ else:
 
     with tab_lista:
         st.header("Cronograma")
-        respuesta = supabase.table("eventos").select("*").order("fecha_hora").execute()
+        
+        # --- FILTRO INTELIGENTE DE FECHA ---
+        # 1. Calculamos la hora actual en Chile (UTC-4)
+        hora_chile = datetime.utcnow() - timedelta(hours=4)
+        # 2. Tomamos el inicio del día (00:00) para no borrar los eventos que son hoy más tarde
+        inicio_de_hoy = hora_chile.strftime("%Y-%m-%d") + "T00:00"
+        
+        # 3. Pedimos a la base de datos solo los eventos desde hoy en adelante
+        respuesta = supabase.table("eventos").select("*").gte("fecha_hora", inicio_de_hoy).order("fecha_hora").execute()
         eventos = respuesta.data
         
         if not eventos:
@@ -162,7 +170,6 @@ else:
             for evento in eventos:
                 with st.expander(f"➔ {evento['titulo']} ({evento['tipo']})"):
                     
-                    # --- DISTRIBUCIÓN DE PESTAÑAS INTERNAS SEGÚN EL ROL ---
                     if es_entrenador:
                         tabs_evento = st.tabs(["Detalles", "📋 Alineación", "🏟️ Cancha", "📦 Materiales", "👥 Editar Encargados"])
                         sub_info = tabs_evento[0]
@@ -174,7 +181,6 @@ else:
                         tabs_evento = st.tabs(["ℹ️ Detalles del Evento"])
                         sub_info = tabs_evento[0]
                     
-                    # 1. PESTAÑA DE DETALLES (Visible para todos)
                     with sub_info:
                         fecha_str = evento["fecha_hora"].replace("T", " ")[:16]
                         st.write(f"🕒 **Cuándo:** {fecha_str}")
@@ -211,7 +217,6 @@ else:
                                 st.success("Evento eliminado.")
                                 st.rerun()
 
-                    # BLOQUE EXCLUSIVO PARA ENTRENADORES
                     if es_entrenador:
                         res_alineacion = supabase.table("alineaciones").select("*").eq("evento_id", evento["id"]).execute()
                         alineacion_actual = {item["numero"]: item["jugador"] for item in res_alineacion.data}
@@ -327,7 +332,6 @@ else:
                                     st.success("Responsables actualizados con éxito.")
                                     st.rerun()
 
-    # --- PESTAÑA PARA CREAR EVENTO (Exclusiva para entrenadores) ---
     if es_entrenador and tab_crear is not None:
         with tab_crear:
             st.header("Nuevo Evento")
