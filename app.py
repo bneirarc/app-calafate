@@ -11,9 +11,10 @@ CORREO_ADMIN = "b.neirarc@gmail.com"
 # Agrega aquí los correos de todos los que deben tener permisos de Entrenador
 CORREOS_ENTRENADORES = [
     "b.neirarc@gmail.com",
-    "katherine.tor.rod@gmail.com",
-    "entrenador3@gmail.com",
-    "entrenador4@gmail.com"
+    "claudio.leiva.temuco@gmail.com",
+    "eamcfit@gmail.com",
+    "bastian.venegasenois@gmail.com"
+    "jmgonz652@gmail.com"
 ]
 
 def agregar_fondo_local(ruta_imagen):
