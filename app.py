@@ -349,14 +349,22 @@ else:
                 elif e["tipo"] == "Tercer Tiempo":
                     color_evento = "#9C27B0"
                     
+                # Extraemos la hora para mandarla al panel de detalles
+                hora_str = e["fecha_hora"].replace("T", " ")[:16]
+                
                 eventos_formateados.append({
-                    "title": f"{e['titulo']} ({e['tipo']})",
+                    "title": e['titulo'], # Ahora solo enviamos el título, sin la hora ni el tipo
                     "start": e["fecha_hora"],
-                    "color": color_evento
+                    "color": color_evento,
+                    "extendedProps": { # Información oculta que se mostrará al hacer clic
+                        "tipo": e["tipo"],
+                        "lugar": e["lugar"],
+                        "hora": hora_str
+                    }
                 })
                 
             opciones_calendario = {
-                "locale": "es", # <-- Esto cambia el idioma a Español
+                "locale": "es",
                 "headerToolbar": {
                     "left": "today prev,next",
                     "center": "title",
@@ -364,9 +372,9 @@ else:
                 },
                 "initialView": "dayGridMonth",
                 "height": 550,
+                "displayEventTime": False, # Esto quita la hora nativa (ej: 6:16p) del bloque
             }
 
-            # CSS mejorado para un diseño más elegante y profesional
             estilo_calendario = """
                 .fc {
                     background-color: rgba(255, 255, 255, 0.95);
@@ -383,7 +391,7 @@ else:
                     font-size: 1.5em !important;
                 }
                 .fc-button {
-                    background-color: #ff9800 !important; /* Naranjo estilo Calafate */
+                    background-color: #ff9800 !important; 
                     border: none !important;
                     border-radius: 8px !important;
                     font-weight: bold !important;
@@ -417,17 +425,42 @@ else:
                     color: #444 !important;
                 }
                 .fc-day-today {
-                    background-color: rgba(255, 152, 0, 0.15) !important; /* Fondo suave para resaltar el día actual */
+                    background-color: rgba(255, 152, 0, 0.15) !important; 
                 }
                 .fc-event {
                     border-radius: 4px !important;
                     border: none !important;
-                    padding: 2px 4px !important;
+                    padding: 4px !important;
                     font-weight: bold !important;
+                    cursor: pointer !important;
+                    white-space: normal !important; /* Fuerza a que el texto pueda bajar de línea */
+                }
+                .fc-event-title {
+                    white-space: normal !important; /* Múltiples líneas para nombres largos */
+                    word-wrap: break-word !important;
+                }
+                .fc-event-main {
+                    white-space: normal !important;
                 }
             """
             
-            calendar(events=eventos_formateados, options=opciones_calendario, custom_css=estilo_calendario)
+            # Guardamos el estado del calendario en una variable
+            calendario_estado = calendar(events=eventos_formateados, options=opciones_calendario, custom_css=estilo_calendario)
+            
+            # --- VENTANA DE DETALLES AL HACER CLIC ---
+            if calendario_estado is not None and calendario_estado.get("callback") == "eventClick":
+                # Rescatamos la información del evento clickeado
+                evento_seleccionado = calendario_estado.get("eventClick", {}).get("event", calendario_estado.get("event", {}))
+                
+                if evento_seleccionado:
+                    props = evento_seleccionado.get("extendedProps", {})
+                    st.markdown("---")
+                    st.success(
+                        f"### 📌 {evento_seleccionado.get('title', 'Actividad')}\n"
+                        f"**🗓️ Tipo:** {props.get('tipo', '---')}\n\n"
+                        f"**🕒 Fecha y Hora:** {props.get('hora', '---')}\n\n"
+                        f"**📍 Lugar:** {props.get('lugar', '---')}"
+                    )
         else:
             st.info("No hay eventos registrados para mostrar en el calendario.")
 
