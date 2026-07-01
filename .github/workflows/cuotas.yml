@@ -3,7 +3,7 @@ name: Cobro Mensual de Cuotas
 on:
   schedule:
     # Se ejecuta el día 1 de cada mes a las 12:00 UTC (08:00 AM hora de Chile)
-    - cron: '0 12 1 * *'
+    - cron: '17 12 1 * *'
   workflow_dispatch: # Nos crea un botón para ejecutar el cobro de forma manual cuando queramos
 
 jobs:
