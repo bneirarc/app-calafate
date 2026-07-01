@@ -141,6 +141,15 @@ else:
 
     st.write("---")
     
+    # --- OPTIMIZACIÓN: CARGAR TODOS LOS EVENTOS UNA SOLA VEZ ---
+    with st.spinner("Sincronizando base de datos..."):
+        try:
+            res_todos = supabase.table("eventos").select("*").order("fecha_hora").execute()
+            todos_los_eventos = res_todos.data
+        except Exception as e:
+            todos_los_eventos = []
+            st.error("Hubo un problema al cargar los eventos.")
+
     if es_entrenador:
         tabs_principales = st.tabs(["📅 Próximos Eventos", "📆 Calendario", "➕ Registrar Evento"])
         tab_lista = tabs_principales[0]
@@ -158,13 +167,13 @@ else:
         hora_chile = datetime.utcnow() - timedelta(hours=4)
         inicio_de_hoy = hora_chile.strftime("%Y-%m-%d") + "T00:00"
         
-        respuesta = supabase.table("eventos").select("*").gte("fecha_hora", inicio_de_hoy).order("fecha_hora").execute()
-        eventos = respuesta.data
+        # Filtramos internamente para la lista (solo eventos de hoy en adelante)
+        eventos_futuros = [e for e in todos_los_eventos if e["fecha_hora"] >= inicio_de_hoy]
         
-        if not eventos:
+        if not eventos_futuros:
             st.info("Aún no hay eventos registrados.")
         else:
-            for evento in eventos:
+            for evento in eventos_futuros:
                 with st.expander(f"➔ {evento['titulo']} ({evento['tipo']})"):
                     
                     if es_entrenador:
@@ -223,10 +232,10 @@ else:
                                 cols_form = st.columns(3)
                                 nuevos_jugadores = {}
                                 for num in range(1, 24):
-                                    col_idx = (num - 1) % 3
-                                    valor_actual = alineacion_actual.get(num, "")
-                                    with cols_form[col_idx]:
-                                        nuevos_jugadores[num] = st.text_input(f"N° {num}", value=valor_actual, key=f"jug_{evento['id']}_{num}")
+                                col_idx = (num - 1) % 3
+                                valor_actual = alineacion_actual.get(num, "")
+                                with cols_form[col_idx]:
+                                    nuevos_jugadores[num] = st.text_input(f"N° {num}", value=valor_actual, key=f"jug_{evento['id']}_{num}")
                                 
                                 if st.form_submit_button("Guardar Alineación"):
                                     supabase.table("alineaciones").delete().eq("evento_id", evento["id"]).execute()
@@ -333,12 +342,10 @@ else:
     with tab_calendario:
         st.header("📆 Calendario de Actividades")
         
-        res_cal = supabase.table("eventos").select("*").execute()
-        eventos_totales = res_cal.data
-        
-        if eventos_totales:
+        # Usamos la lista de todos los eventos que cargamos al principio (más rápido)
+        if todos_los_eventos:
             eventos_formateados = []
-            for e in eventos_totales:
+            for e in todos_los_eventos:
                 color_evento = "#4CAF50"
                 if e["tipo"] == "Partido":
                     color_evento = "#d32f2f"
@@ -349,14 +356,13 @@ else:
                 elif e["tipo"] == "Tercer Tiempo":
                     color_evento = "#9C27B0"
                     
-                # Extraemos la hora para mandarla al panel de detalles
                 hora_str = e["fecha_hora"].replace("T", " ")[:16]
                 
                 eventos_formateados.append({
-                    "title": e['titulo'], # Ahora solo enviamos el título, sin la hora ni el tipo
+                    "title": e['titulo'], 
                     "start": e["fecha_hora"],
                     "color": color_evento,
-                    "extendedProps": { # Información oculta que se mostrará al hacer clic
+                    "extendedProps": { 
                         "tipo": e["tipo"],
                         "lugar": e["lugar"],
                         "hora": hora_str
@@ -372,7 +378,7 @@ else:
                 },
                 "initialView": "dayGridMonth",
                 "height": 550,
-                "displayEventTime": False, # Esto quita la hora nativa (ej: 6:16p) del bloque
+                "displayEventTime": False,
             }
 
             estilo_calendario = """
@@ -383,6 +389,7 @@ else:
                     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
                     font-family: 'Arial', sans-serif;
                     color: #333 !important;
+                    width: 100% !important;
                 }
                 .fc-toolbar-title {
                     color: #2c3e50 !important;
@@ -433,10 +440,10 @@ else:
                     padding: 4px !important;
                     font-weight: bold !important;
                     cursor: pointer !important;
-                    white-space: normal !important; /* Fuerza a que el texto pueda bajar de línea */
+                    white-space: normal !important;
                 }
                 .fc-event-title {
-                    white-space: normal !important; /* Múltiples líneas para nombres largos */
+                    white-space: normal !important; 
                     word-wrap: break-word !important;
                 }
                 .fc-event-main {
@@ -444,12 +451,10 @@ else:
                 }
             """
             
-            # Guardamos el estado del calendario en una variable
-            calendario_estado = calendar(events=eventos_formateados, options=opciones_calendario, custom_css=estilo_calendario)
+            # Anclamos el calendario con una "key" para que no desaparezca al cambiar de pestaña
+            calendario_estado = calendar(events=eventos_formateados, options=opciones_calendario, custom_css=estilo_calendario, key="calendario_oficial")
             
-            # --- VENTANA DE DETALLES AL HACER CLIC ---
             if calendario_estado is not None and calendario_estado.get("callback") == "eventClick":
-                # Rescatamos la información del evento clickeado
                 evento_seleccionado = calendario_estado.get("eventClick", {}).get("event", calendario_estado.get("event", {}))
                 
                 if evento_seleccionado:
