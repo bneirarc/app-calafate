@@ -386,7 +386,7 @@ else:
                 }
             """
             
-            calendar(events=events_formateados, options=opciones_calendario, custom_css=estilo_calendario)
+            calendar(events=eventos_formateados, options=opciones_calendario, custom_css=estilo_calendario)
         else:
             st.info("No hay eventos registrados para mostrar en el calendario.")
 
