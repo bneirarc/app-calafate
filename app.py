@@ -141,7 +141,7 @@ else:
 
     st.write("---")
     
-    # --- OPTIMIZACIÓN: CARGAR TODOS LOS EVENTOS UNA SOLA VEZ ---
+    # --- CARGA ÚNICA DE DATOS PARA VELOCIDAD ---
     with st.spinner("Sincronizando base de datos..."):
         try:
             res_todos = supabase.table("eventos").select("*").order("fecha_hora").execute()
@@ -150,24 +150,23 @@ else:
             todos_los_eventos = []
             st.error("Hubo un problema al cargar los eventos.")
 
+    # --- MENÚ DE NAVEGACIÓN (REEMPLAZA A LAS PESTAÑAS OCULTAS) ---
     if es_entrenador:
-        tabs_principales = st.tabs(["📅 Próximos Eventos", "📆 Calendario", "➕ Registrar Evento"])
-        tab_lista = tabs_principales[0]
-        tab_calendario = tabs_principales[1]
-        tab_crear = tabs_principales[2]
+        opciones_menu = ["📅 Próximos Eventos", "📆 Calendario", "➕ Registrar Evento"]
     else:
-        tabs_principales = st.tabs(["📅 Próximos Eventos", "📆 Calendario"])
-        tab_lista = tabs_principales[0]
-        tab_calendario = tabs_principales[1]
-        tab_crear = None
+        opciones_menu = ["📅 Próximos Eventos", "📆 Calendario"]
 
-    # --- PESTAÑA 1: LISTA DE EVENTOS ---
-    with tab_lista:
+    # Usamos st.radio horizontal para que se vea y funcione similar a las pestañas, pero obligando a refrescar la pantalla
+    menu_seleccionado = st.radio("Secciones", opciones_menu, horizontal=True, label_visibility="collapsed")
+    
+    st.write("---")
+
+    # --- SECCIÓN 1: LISTA DE EVENTOS ---
+    if menu_seleccionado == "📅 Próximos Eventos":
         st.header("Cronograma")
         hora_chile = datetime.utcnow() - timedelta(hours=4)
         inicio_de_hoy = hora_chile.strftime("%Y-%m-%d") + "T00:00"
         
-        # Filtramos internamente para la lista (solo eventos de hoy en adelante)
         eventos_futuros = [e for e in todos_los_eventos if e["fecha_hora"] >= inicio_de_hoy]
         
         if not eventos_futuros:
@@ -338,11 +337,10 @@ else:
                                     st.success("Responsables actualizados con éxito.")
                                     st.rerun()
 
-    # --- PESTAÑA 2: CALENDARIO VISUAL ---
-    with tab_calendario:
+    # --- SECCIÓN 2: CALENDARIO VISUAL ---
+    elif menu_seleccionado == "📆 Calendario":
         st.header("📆 Calendario de Actividades")
         
-        # Usamos la lista de todos los eventos que cargamos al principio (más rápido)
         if todos_los_eventos:
             eventos_formateados = []
             for e in todos_los_eventos:
@@ -451,8 +449,8 @@ else:
                 }
             """
             
-            # Anclamos el calendario con una "key" para que no desaparezca al cambiar de pestaña
-            calendario_estado = calendar(events=eventos_formateados, options=opciones_calendario, custom_css=estilo_calendario, key="calendario_oficial")
+            # ¡Se quitó el 'key' y ya no hay dependencias de pestañas ocultas!
+            calendario_estado = calendar(events=eventos_formateados, options=opciones_calendario, custom_css=estilo_calendario)
             
             if calendario_estado is not None and calendario_estado.get("callback") == "eventClick":
                 evento_seleccionado = calendario_estado.get("eventClick", {}).get("event", calendario_estado.get("event", {}))
@@ -469,43 +467,42 @@ else:
         else:
             st.info("No hay eventos registrados para mostrar en el calendario.")
 
-    # --- PESTAÑA 3: CREAR EVENTO ---
-    if es_entrenador and tab_crear is not None:
-        with tab_crear:
-            st.header("Nuevo Evento")
-            with st.form("form_nuevo_evento", clear_on_submit=True):
-                titulo = st.text_input("Título del Evento")
-                tipo = st.selectbox("Tipo", ["Partido", "Entrenamiento", "Festival", "Reunión", "Tercer Tiempo"])
-                fecha = st.date_input("Fecha")
-                hora = st.time_input("Hora")
-                lugar = st.text_input("Lugar / Cancha")
-                link = st.text_input("Link de Google Maps (Opcional)")
+    # --- SECCIÓN 3: CREAR EVENTO ---
+    elif menu_seleccionado == "➕ Registrar Evento":
+        st.header("Nuevo Evento")
+        with st.form("form_nuevo_evento", clear_on_submit=True):
+            titulo = st.text_input("Título del Evento")
+            tipo = st.selectbox("Tipo", ["Partido", "Entrenamiento", "Festival", "Reunión", "Tercer Tiempo"])
+            fecha = st.date_input("Fecha")
+            hora = st.time_input("Hora")
+            lugar = st.text_input("Lugar / Cancha")
+            link = st.text_input("Link de Google Maps (Opcional)")
+            
+            st.write("---")
+            st.write("👥 **Designar Encargados (Máximo 5)**")
+            col_e1, col_e2 = st.columns(2)
+            with col_e1:
+                enc1 = st.text_input("Encargado 1")
+                enc3 = st.text_input("Encargado 3")
+                enc5 = st.text_input("Encargado 5")
+            with col_e2:
+                enc2 = st.text_input("Encargado 2")
+                enc4 = st.text_input("Encargado 4")
+            
+            submit = st.form_submit_button("Guardar Evento")
+            
+            if submit:
+                fecha_hora_str = f"{fecha}T{hora}"
+                nuevo_evento = {"titulo": titulo, "tipo": tipo, "fecha_hora": fecha_hora_str, "lugar": lugar, "link_maps": link}
                 
-                st.write("---")
-                st.write("👥 **Designar Encargados (Máximo 5)**")
-                col_e1, col_e2 = st.columns(2)
-                with col_e1:
-                    enc1 = st.text_input("Encargado 1")
-                    enc3 = st.text_input("Encargado 3")
-                    enc5 = st.text_input("Encargado 5")
-                with col_e2:
-                    enc2 = st.text_input("Encargado 2")
-                    enc4 = st.text_input("Encargado 4")
+                respuesta_insercion = supabase.table("eventos").insert(nuevo_evento).execute()
+                nuevo_id = respuesta_insercion.data[0]['id']
                 
-                submit = st.form_submit_button("Guardar Evento")
+                lista_encargados = [enc1, enc2, enc3, enc4, enc5]
+                datos_encargados = [{"evento_id": nuevo_id, "nombre": e.strip()} for e in lista_encargados if e.strip() != ""]
                 
-                if submit:
-                    fecha_hora_str = f"{fecha}T{hora}"
-                    nuevo_evento = {"titulo": titulo, "tipo": tipo, "fecha_hora": fecha_hora_str, "lugar": lugar, "link_maps": link}
-                    
-                    respuesta_insercion = supabase.table("eventos").insert(nuevo_evento).execute()
-                    nuevo_id = respuesta_insercion.data[0]['id']
-                    
-                    lista_encargados = [enc1, enc2, enc3, enc4, enc5]
-                    datos_encargados = [{"evento_id": nuevo_id, "nombre": e.strip()} for e in lista_encargados if e.strip() != ""]
-                    
-                    if datos_encargados:
-                        supabase.table("encargados").insert(datos_encargados).execute()
-                    
-                    st.success("¡Evento registrado exitosamente!")
-                    st.rerun()
+                if datos_encargados:
+                    supabase.table("encargados").insert(datos_encargados).execute()
+                
+                st.success("¡Evento registrado exitosamente!")
+                st.rerun()
