@@ -2,18 +2,19 @@ import streamlit as st
 import base64
 from supabase import create_client, Client
 from datetime import datetime, timedelta
+from streamlit_calendar import calendar
 
 st.set_page_config(page_title="App Entrenadores - Calafate RC", page_icon="🏉", layout="centered")
 
 # --- CONTROL DE ACCESOS ---
 CORREO_ADMIN = "b.neirarc@gmail.com" 
 
-# Agrega aquí los correos de todos los que deben tener permisos de Entrenador
 CORREOS_ENTRENADORES = [
     "b.neirarc@gmail.com",
+    "katherine.tor.rod@gmail.com",
     "claudio.leiva.temuco@gmail.com",
     "eamcfit@gmail.com",
-    "bastian.venegasenois@gmail.com"
+    "bastian.venegasenois@gmail.com",
     "jmgonz652@gmail.com"
 ]
 
@@ -43,7 +44,6 @@ def agregar_fondo_local(ruta_imagen):
             div[role="listbox"] * {{ color: #000000 !important; }}
             div[data-baseweb="popover"] * {{ color: #000000 !important; }}
             
-            /* --- CORRECCIÓN PARA CELULARES --- */
             @media (max-width: 768px) {{
                 div[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {{
                     flex-direction: row !important;
@@ -100,7 +100,8 @@ if st.session_state.usuario is None:
                     st.session_state.usuario = respuesta.user
                     st.rerun()
                 except Exception as e:
-                    st.error("Error al iniciar sesión.")
+                    # Aquí cambiamos el error para que te muestre exactamente qué falla en Supabase
+                    st.error(f"Error al iniciar sesión: {e}")
 
     with tab_registro:
         with st.form("form_registro"):
@@ -112,10 +113,9 @@ if st.session_state.usuario is None:
                     supabase.auth.sign_up({"email": email_reg, "password": pass_reg})
                     st.success("¡Registro exitoso! Ahora inicia sesión.")
                 except Exception as e:
-                    st.error("Hubo un error en el registro.")
+                    st.error(f"Hubo un error en el registro: {e}")
 
 else:
-    # --- VERIFICAR ROL DEL USUARIO ACTUAL ---
     correo_actual = st.session_state.usuario.email
     es_entrenador = correo_actual in CORREOS_ENTRENADORES
     es_admin = correo_actual == CORREO_ADMIN
@@ -142,26 +142,25 @@ else:
 
     st.write("---")
     
-    # --- DISTRIBUCIÓN DE PESTAÑAS PRINCIPALES ---
+    # --- DISTRIBUCIÓN DE PESTAÑAS (AHORA CON CALENDARIO) ---
     if es_entrenador:
-        tabs_principales = st.tabs(["📅 Próximos Eventos", "➕ Registrar Evento"])
+        tabs_principales = st.tabs(["📅 Próximos Eventos", "📆 Calendario", "➕ Registrar Evento"])
         tab_lista = tabs_principales[0]
-        tab_crear = tabs_principales[1]
+        tab_calendario = tabs_principales[1]
+        tab_crear = tabs_principales[2]
     else:
-        tabs_principales = st.tabs(["📅 Próximos Eventos"])
+        # Los jugadores también ven el calendario, pero no pueden crear
+        tabs_principales = st.tabs(["📅 Próximos Eventos", "📆 Calendario"])
         tab_lista = tabs_principales[0]
+        tab_calendario = tabs_principales[1]
         tab_crear = None
 
+    # --- PESTAÑA 1: LISTA DE EVENTOS ---
     with tab_lista:
         st.header("Cronograma")
-        
-        # --- FILTRO INTELIGENTE DE FECHA ---
-        # 1. Calculamos la hora actual en Chile (UTC-4)
         hora_chile = datetime.utcnow() - timedelta(hours=4)
-        # 2. Tomamos el inicio del día (00:00) para no borrar los eventos que son hoy más tarde
         inicio_de_hoy = hora_chile.strftime("%Y-%m-%d") + "T00:00"
         
-        # 3. Pedimos a la base de datos solo los eventos desde hoy en adelante
         respuesta = supabase.table("eventos").select("*").gte("fecha_hora", inicio_de_hoy).order("fecha_hora").execute()
         eventos = respuesta.data
         
@@ -333,6 +332,47 @@ else:
                                     st.success("Responsables actualizados con éxito.")
                                     st.rerun()
 
+    # --- PESTAÑA 2: CALENDARIO VISUAL ---
+    with tab_calendario:
+        st.header("📆 Calendario de Actividades")
+        
+        # Pedimos a la base de datos TODOS los eventos para mostrarlos en el calendario
+        res_cal = supabase.table("eventos").select("*").execute()
+        eventos_totales = res_cal.data
+        
+        if eventos_totales:
+            eventos_formateados = []
+            for e in eventos_totales:
+                color_evento = "#4CAF50" # Verde
+                if e["tipo"] == "Partido":
+                    color_evento = "#d32f2f" # Rojo
+                elif e["tipo"] == "Festival":
+                    color_evento = "#FF9800" # Naranja
+                elif e["tipo"] == "Reunión":
+                    color_evento = "#2196F3" # Azul
+                elif e["tipo"] == "Tercer Tiempo":
+                    color_evento = "#9C27B0" # Morado
+                    
+                eventos_formateados.append({
+                    "title": f"{e['titulo']} ({e['tipo']})",
+                    "start": e["fecha_hora"],
+                    "color": color_evento
+                })
+                
+            opciones_calendario = {
+                "headerToolbar": {
+                    "left": "today prev,next",
+                    "center": "title",
+                    "right": "dayGridMonth,timeGridWeek"
+                },
+                "initialView": "dayGridMonth",
+            }
+            
+            calendar(events=eventos_formateados, options=opciones_calendario)
+        else:
+            st.info("No hay eventos registrados para mostrar en el calendario.")
+
+    # --- PESTAÑA 3: CREAR EVENTO (Solo Entrenadores) ---
     if es_entrenador and tab_crear is not None:
         with tab_crear:
             st.header("Nuevo Evento")
