@@ -356,6 +356,7 @@ else:
                 })
                 
             opciones_calendario = {
+                "locale": "es", # <-- Esto cambia el idioma a Español
                 "headerToolbar": {
                     "left": "today prev,next",
                     "center": "title",
@@ -365,24 +366,64 @@ else:
                 "height": 550,
             }
 
+            # CSS mejorado para un diseño más elegante y profesional
             estilo_calendario = """
                 .fc {
                     background-color: rgba(255, 255, 255, 0.95);
-                    padding: 10px;
-                    border-radius: 10px;
-                    color: black !important;
+                    padding: 15px;
+                    border-radius: 15px;
+                    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+                    font-family: 'Arial', sans-serif;
+                    color: #333 !important;
                 }
                 .fc-toolbar-title {
-                    color: black !important;
-                    font-size: 1.2em !important;
+                    color: #2c3e50 !important;
+                    font-weight: 800 !important;
+                    text-transform: capitalize;
+                    font-size: 1.5em !important;
                 }
                 .fc-button {
-                    background-color: #2e7d32 !important;
+                    background-color: #ff9800 !important; /* Naranjo estilo Calafate */
                     border: none !important;
+                    border-radius: 8px !important;
+                    font-weight: bold !important;
+                    text-transform: capitalize !important;
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    transition: all 0.3s ease;
+                }
+                .fc-button:hover {
+                    background-color: #f57c00 !important;
+                    transform: translateY(-2px);
+                }
+                .fc-button-active {
+                    background-color: #e65100 !important;
                 }
                 .fc-daygrid-day-number {
-                    color: black !important;
+                    color: #555 !important;
+                    font-weight: bold;
                     text-decoration: none !important;
+                    padding: 5px !important;
+                }
+                .fc-col-header-cell {
+                    background-color: #f0f2f6;
+                    color: #333;
+                    padding: 10px 0;
+                    border-bottom: 2px solid #ddd;
+                }
+                .fc-col-header-cell-cushion {
+                    text-transform: capitalize;
+                    font-weight: bold;
+                    text-decoration: none !important;
+                    color: #444 !important;
+                }
+                .fc-day-today {
+                    background-color: rgba(255, 152, 0, 0.15) !important; /* Fondo suave para resaltar el día actual */
+                }
+                .fc-event {
+                    border-radius: 4px !important;
+                    border: none !important;
+                    padding: 2px 4px !important;
+                    font-weight: bold !important;
                 }
             """
             
