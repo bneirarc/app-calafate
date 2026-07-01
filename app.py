@@ -232,10 +232,10 @@ else:
                                 cols_form = st.columns(3)
                                 nuevos_jugadores = {}
                                 for num in range(1, 24):
-                                col_idx = (num - 1) % 3
-                                valor_actual = alineacion_actual.get(num, "")
-                                with cols_form[col_idx]:
-                                    nuevos_jugadores[num] = st.text_input(f"N° {num}", value=valor_actual, key=f"jug_{evento['id']}_{num}")
+                                    col_idx = (num - 1) % 3
+                                    valor_actual = alineacion_actual.get(num, "")
+                                    with cols_form[col_idx]:
+                                        nuevos_jugadores[num] = st.text_input(f"N° {num}", value=valor_actual, key=f"jug_{evento['id']}_{num}")
                                 
                                 if st.form_submit_button("Guardar Alineación"):
                                     supabase.table("alineaciones").delete().eq("evento_id", evento["id"]).execute()
