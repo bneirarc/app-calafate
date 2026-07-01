@@ -100,7 +100,6 @@ if st.session_state.usuario is None:
                     st.session_state.usuario = respuesta.user
                     st.rerun()
                 except Exception as e:
-                    # Aquí cambiamos el error para que te muestre exactamente qué falla en Supabase
                     st.error(f"Error al iniciar sesión: {e}")
 
     with tab_registro:
@@ -142,14 +141,12 @@ else:
 
     st.write("---")
     
-    # --- DISTRIBUCIÓN DE PESTAÑAS (AHORA CON CALENDARIO) ---
     if es_entrenador:
         tabs_principales = st.tabs(["📅 Próximos Eventos", "📆 Calendario", "➕ Registrar Evento"])
         tab_lista = tabs_principales[0]
         tab_calendario = tabs_principales[1]
         tab_crear = tabs_principales[2]
     else:
-        # Los jugadores también ven el calendario, pero no pueden crear
         tabs_principales = st.tabs(["📅 Próximos Eventos", "📆 Calendario"])
         tab_lista = tabs_principales[0]
         tab_calendario = tabs_principales[1]
@@ -336,22 +333,21 @@ else:
     with tab_calendario:
         st.header("📆 Calendario de Actividades")
         
-        # Pedimos a la base de datos TODOS los eventos para mostrarlos en el calendario
         res_cal = supabase.table("eventos").select("*").execute()
         eventos_totales = res_cal.data
         
         if eventos_totales:
             eventos_formateados = []
             for e in eventos_totales:
-                color_evento = "#4CAF50" # Verde
+                color_evento = "#4CAF50"
                 if e["tipo"] == "Partido":
-                    color_evento = "#d32f2f" # Rojo
+                    color_evento = "#d32f2f"
                 elif e["tipo"] == "Festival":
-                    color_evento = "#FF9800" # Naranja
+                    color_evento = "#FF9800"
                 elif e["tipo"] == "Reunión":
-                    color_evento = "#2196F3" # Azul
+                    color_evento = "#2196F3"
                 elif e["tipo"] == "Tercer Tiempo":
-                    color_evento = "#9C27B0" # Morado
+                    color_evento = "#9C27B0"
                     
                 eventos_formateados.append({
                     "title": f"{e['titulo']} ({e['tipo']})",
@@ -366,13 +362,35 @@ else:
                     "right": "dayGridMonth,timeGridWeek"
                 },
                 "initialView": "dayGridMonth",
+                "height": 550,
             }
+
+            estilo_calendario = """
+                .fc {
+                    background-color: rgba(255, 255, 255, 0.95);
+                    padding: 10px;
+                    border-radius: 10px;
+                    color: black !important;
+                }
+                .fc-toolbar-title {
+                    color: black !important;
+                    font-size: 1.2em !important;
+                }
+                .fc-button {
+                    background-color: #2e7d32 !important;
+                    border: none !important;
+                }
+                .fc-daygrid-day-number {
+                    color: black !important;
+                    text-decoration: none !important;
+                }
+            """
             
-            calendar(events=eventos_formateados, options=opciones_calendario)
+            calendar(events=events_formateados, options=opciones_calendario, custom_css=estilo_calendario)
         else:
             st.info("No hay eventos registrados para mostrar en el calendario.")
 
-    # --- PESTAÑA 3: CREAR EVENTO (Solo Entrenadores) ---
+    # --- PESTAÑA 3: CREAR EVENTO ---
     if es_entrenador and tab_crear is not None:
         with tab_crear:
             st.header("Nuevo Evento")
